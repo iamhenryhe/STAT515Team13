@@ -1,0 +1,1020 @@
+---
+title: "Final Project"
+author: "Team13"
+date: "2024-05-03"
+output:
+  html_document:
+    code_folding: hide
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(knitr)
+library(kableExtra)
+```
+
+# STAT515 Final Project
+
+## 1.Introduction
+
+### Depression is one of the mental disorders affecting millions of people around the world. Public health needs to study and understand the causes of depression and its risk factors. Depression can have severe consequences on an individual's life, and it will reduce life quality and increase the risk of suicide. Therefore, we have chosen to focus our efforts on investigating depression and the factors causing that. For this reason we decide to work on depression.
+
+## 2.Background
+
+### As the prevalence of depression and anxiety disorders rises globally, we face increasing public health challenges. As shown in the figure, the prevalence of anxiety and depression varies significantly from country to country, suggesting the need to develop and implement effective treatment strategies tailored to each region. Global attention and treatment for depression and anxiety disorders is urgent, and we must take action to reduce the health burden of these disorders.
+
+### This visualization is an interactive map with the addition of the shiny feature, which means that we have taken into account the needs of some colorblind groups, and we can switch the background color at will so that different viewers can access the information in the graphic.
+
+```{r load-libraries, message=FALSE}
+library(leaflet)
+library(dplyr)
+library(countrycode)
+library(raster)
+library(rnaturalearth)
+library(ggplot2)
+library(sf)
+library(tmap)
+library(tidyverse)
+
+# load data
+data <- read.csv("/Users/zijiehe/Desktop/STAT515FINAL/share-who-report-lifetime-anxiety-or-depression.csv")
+
+# Data preprocessing
+data <- data[!is.na(data$Code) & data$Code != "",]
+
+# rnaturalearth package
+world <- ne_countries(scale = "medium", returnclass = "sf")
+
+# join function application
+world <- merge(world, data, by.x = "iso_a3_eh", by.y = "Code")
+
+# color gradient
+world$Rate <- as.numeric(world$Rate)
+# define the color 
+
+
+# shiny function
+world_sf <- st_as_sf(world)
+
+tmap_mode("view")
+
+tm <- tm_shape(world_sf) +
+  tm_polygons("Rate", palette = "-RdYlBu", title = "Rate of Depression") +
+  tm_layout(frame = FALSE, title = "Global Rate of Depression")
+
+tm
+```
+
+### This image is a world map showing the global prevalence of anxiety and depression. The different colors on the map represent the prevalence of anxiety and depression in different countries, ranging from 0% to 50%. For example, the dark red color represents a prevalence of 40% to 50%, while the light yellow color indicates a prevalence of 0% to 10%. As can be seen from the figure, anxiety and depression are unevenly distributed globally, with some countries having significantly higher prevalence rates than others.
+
+
+## 3.Depression Dataset
+
+## 3.1 Introduction
+
+## 3.1.1 Basic information
+
+### The depression dataset is taken from https://ourworldindata.org/ and it includes 1147 individual records and 36 attributes such as sex ,age marital status , Number of children in the household, Household size, Years of education, Consumption of nondurable goods, Value of durable assets,value of cell phone assets,Savings assets,Total owned land assets,Total food consumption,Alcohol consumption,Tobacco consumption,Consumption of medical care,Consumption of children's medical care,Consumption of education,Consumption of social activities,Other consumption, Nonagricultural income,Flow cost of nonagricultural business,Total cost,Frequency of purchasing full-price food items on a regular basis,How often children buy full-price food,Meat food consumption,Whether the diet is adequate,Frequency of sleep deprivation due to hunger, Number of days household members were sick, Number of deaths of children under five years old,Expenses on education,School attendance rate,Investment in durable goods,Investment in nondurable goods,Depressed status. This dataset does not include any missing values but it is not balanced, the numbeor of records that have depressed value  equal to 0 is 953 and the number of records which have depression value equal to 1 is 194. 
+
+### 3.1.2 The meanings of each variable
+
+```{r results='hide'}
+library(ggplot2)
+library(caret)
+library(GGally)
+library(corrplot)
+library(plotly)
+
+data <- read.csv("/Users/zijiehe/Desktop/STAT515FINAL/dep.csv") 
+# set the depression as Y
+colnames(data)[ncol(data)] <- "depression"
+str(data)
+
+
+# numeric
+sapply(data, is.numeric)
+cor_matrix <- cor(data, use = "complete.obs")
+print(cor_matrix)
+```
+
+```{r}
+variable_names <- c("sex", "age", "marital_status", "children", "household_size", "years_of_edu", 
+                    "hh_children", "cons_nondurable", "asset_durable", "asset_phone", "asset_savings", 
+                    "asset_land_owned_total", "cons_allfood", "cons_alcohol", "cons_tobacco", "cons_med_total", 
+                    "cons_med_children", "cons_ed", "cons_social", "cons_other", "ent_nonag_revenue", 
+                    "ent_nonag_flowcost", "ent_total_cost", "fs_adwholed_often", "fs_chwholed_often", 
+                    "fs_meat", "fs_enoughtom", "fs_sleephun", "med_sickdays_hhave", "med_u5_deaths", 
+                    "ed_expenses", "ed_schoolattend", "durable_investment", "nondurable_investment", "depressed")
+
+variable_descriptions <- c("Sex, may be 1 for male, 0 for female.", "Age.", "Marital status, may be 1 for married, 0 for unmarried.", 
+                           "The number of children in the household.", "Household size.", "Years of education.", 
+                           "The number of children in the household.", "Consumption of non-durable goods.", "Value of durable assets.", 
+                           "The value of cell phone assets.", "Savings assets.", "Total owned land assets.", 
+                           "Total food consumption.", "Alcohol consumption.", "Tobacco consumption.", 
+                           "Consumption of medical care.", "Consumption of children's medical care.", "Consumption of education.", 
+                           "Consumption of social activities.", "Other consumption.", "Nonagricultural income.", 
+                           "Flow cost of non-agricultural business.", "Total cost.", "Frequency of purchasing full-price food items on a regular basis.", 
+                           "How often children buy full-price food.", "Meat food consumption.", "Whether the diet is adequate.", 
+                           "Frequency of sleep deprivation due to hunger.", "Number of days household members were sick.", 
+                           "The number of deaths of children under five years old.", "Expenses on education.", "School attendance rate.", 
+                           "Investment in durable goods.", "Investment in nondurable goods.", "Depressed status, where 0 is not depressed and 1 is depressed.")
+
+variable_data <- data.frame(Variable = variable_names, Description = variable_descriptions)
+kable(variable_data, format = "html", table.attr = "style='width:100%;'")
+
+```
+
+
+## 3.2 Explore the data
+
+### Before modeling, it is essential to preprocess and prepare the dataset to ensure it is suitable for analysis. As a first step, we check for any missing values in the dataset. Fortunately, there are no missing values present. Next, we assess whether the dataset is balanced. To achieve this, we employ a bar plot to visualize the distribution of the target variable. The plot below indicates there are particularly few non-depression categories comparing to depression values and  the dataset is not balanced for depression.
+
+```{r}
+#######explore the data
+library(ggplot2)
+
+data <- read.csv("/Users/zijiehe/Desktop/STAT515FINAL/dep.csv")
+depressed_counts <- table(data$depressed)
+
+ggplot(data = as.data.frame(depressed_counts), aes(x = Var1, y = Freq, fill = as.factor(Var1))) +
+  geom_bar(stat = "identity") +
+  labs(x = "Depression Status", y = "Count", fill = "Depression Status") +
+  ggtitle("Distribution of Depression Status in the Dataset")
+
+
+########distribution(each variable)
+library(shiny)
+
+# UI
+ui <- fluidPage(
+  titlePanel("Depression Data Exploration"),
+  sidebarLayout(
+    sidebarPanel(
+      selectInput("variable", "Choose a variable:", choices = colnames(data)[-length(colnames(data))]),
+      radioButtons("plotType", "Select plot type:", choices = c("Bar Plot" = "bar", "Box Plot" = "box"))
+    ),
+    mainPanel(
+      plotOutput("plot")
+    )
+  )
+)
+
+# Server
+server <- function(input, output) {
+  output$plot <- renderPlot({
+    if (input$plotType == "bar") {
+      # for categorical
+      data_to_plot <- table(data[[input$variable]], data$depressed)
+      ggplot(as.data.frame(data_to_plot), aes(x = Var1, y = Freq, fill = factor(Var2))) +
+        geom_bar(stat = "identity", position = "dodge") +
+        labs(x = input$variable, y = "Count", fill = "Depression Status") +
+        ggtitle(paste("Distribution of", input$variable, "by Depression Status"))
+    } else if (input$plotType == "box") {
+      # for continuous variables
+      ggplot(data, aes(x = factor(depressed), y = data[[input$variable]], fill = factor(depressed))) +
+        geom_boxplot() +
+        labs(x = "Depression Status", y = input$variable) +
+        ggtitle(paste("Distribution of", input$variable, "by Depression Status"))
+    }
+  })
+}
+
+# shint application
+shinyApp(ui = ui, server = server)
+```
+
+### Next, we should examine the correlations between variables. Visualizing correlations through heatmaps provides a clear overview of the relationships between variables, making it easier to identify patterns and trends in the data. The heatmap displays correlations between variables, with shades of color indicating differences in the strength of the correlation. Many darker-colored grids in the heatmap suggest weaker correlations between these variables. Notably, there appears to be almost no relationship between variables in the dataset.
+
+
+```{r}
+# heatmap
+heatmap <- plot_ly(z = cor_matrix, x = colnames(cor_matrix), y = rownames(cor_matrix), type = "heatmap")
+heatmap
+```
+
+
+
+
+## 4. Data preprocessing
+
+## 4.1 Remove the outliers
+
+```{r}
+remove_outliers <- function(dataset, threshold = 3) {
+  # Calculate mean and standard deviation for each attribute
+  mean_values <- apply(dataset, 2, mean)
+  std_dev_values <- apply(dataset, 2, sd)
+  
+  # Calculate Z-scores for each observation
+  z_scores <- scale(dataset, center = mean_values, scale = std_dev_values)
+  
+  # Identify outliers
+  outlier_indices <- apply(abs(z_scores) > threshold, 1, any)
+  
+  # Remove outliers from the dataset
+  cleaned_dataset <- dataset[!outlier_indices, ]
+  
+  return(cleaned_dataset)
+}
+
+```
+
+### In the preprocessing stage, removing outliers is of significant importance. Numerous techniques are available for this purpose, and in our project, we opted for the Z-score method. By leveraging the mean and standard deviation of the dataset, this method ensures a confidence level equivalent to 99.7%.
+
+```{r}
+#######look at the cleandd data
+
+data <- read.csv("/Users/zijiehe/Desktop/515Final/cleaned_dataset.csv")
+depressed_counts <- table(data$depressed)
+
+ggplot(data = as.data.frame(depressed_counts), aes(x = Var1, y = Freq, fill = as.factor(Var1))) +
+  geom_bar(stat = "identity") +
+  labs(x = "Depression Status", y = "Count", fill = "Depression Status") +
+  ggtitle("Distribution of Depression Status in the CLEANED Dataset")
+
+```
+
+## 4.2 Balancing dataset
+
+### The given dataset is imbalanced, and it can introduce bias into model predictions, especially when one class dominates the others. So, balancing it before modeling becomes essential. Two techniques applied here : upsampling and downsampling. 
+
+## 4.2.1 Upsampling
+
+### In upsampling, the minority class is replicated or synthetically generate and increase the number of instances in the it.
+
+
+```{r}
+
+upSampling <- function(cleaned_dataset) {
+  set.seed(111)
+  A <- upSample(x = cleaned_dataset[, -ncol(cleaned_dataset)], y = cleaned_dataset$depressed)
+  names(A)[names(A) == "Class"] <- "depressed"
+  return(A)
+}
+
+```
+
+
+```{r echo=FALSE}
+#######look at the up-sampling data
+
+data <- read.csv("/Users/zijiehe/Desktop/515Final/data_up.csv")
+depressed_counts <- table(data$depressed)
+
+ggplot(data = as.data.frame(depressed_counts), aes(x = Var1, y = Freq, fill = as.factor(Var1))) +
+  geom_bar(stat = "identity") +
+  labs(x = "Depression Status", y = "Count", fill = "Depression Status") +
+  ggtitle("Distribution of Depression Status in the up sampling Dataset")
+```
+
+## 4.2.2 Downsampling
+
+### In downsampling, random instances from the majority class are removed or randomly subsampled and reduces the number of instances in the majority class to achieve a more balanced dataset.
+
+
+```{r}
+DownSampling<-function(cleaned_dataset){
+  set.seed(111)
+  A<-downSample(x=cleaned_dataset[,-ncol(cleaned_dataset)],
+                y=cleaned_dataset$depressed)
+  names(A)[names(A) == "Class"] <- "depressed"
+  return(A)
+}
+```
+
+
+```{r}
+#######look at the down-sampling data
+
+data <- read.csv("/Users/zijiehe/Desktop/515Final/data_up.csv")
+depressed_counts <- table(data$depressed)
+
+ggplot(data = as.data.frame(depressed_counts), aes(x = Var1, y = Freq, fill = as.factor(Var1))) +
+  geom_bar(stat = "identity") +
+  labs(x = "Depression Status", y = "Count", fill = "Depression Status") +
+  ggtitle("Distribution of Depression Status in the down-sampling Dataset")
+```
+
+
+## 4.3 Feature Selection using PCA
+
+### PCA is the method which is used in preprocessing step. Since we have 35 attributes in this dataset, PCA applied over the whole dataset to selectet important features and reducing the dataset dimension by using linear variavles. The generared dataset from PCA then is passed for modeling.
+
+```{r}
+##################################
+##    PCA      
+#################################
+library(dplyr)
+
+data <- read.csv("/Users/zijiehe/Desktop/STAT515FINAL/dep.csv") 
+
+# One-Hot Encoding
+model_data <- model.matrix(~ . - 1, data = data %>% select(-depressed))
+
+# training set and testing set
+set.seed(123)
+split <- createDataPartition(data$depressed, p = 0.55, list = FALSE)
+train_data <- model_data[split, ]
+test_data <- model_data[-split, ]
+train_labels <- data$depressed[split]
+test_labels <- data$depressed[-split]
+
+# Standardizing data for PCA
+train_scaled <- scale(train_data)
+test_scaled <- scale(test_data, center = attr(train_scaled, "scaled:center"), scale = attr(train_scaled, "scaled:scale"))
+
+pca <- prcomp(train_scaled, center = TRUE, scale. = TRUE)
+
+# Summary
+summary(pca)
+
+# CHOSE THE NUM Of PCA
+cumsum(prcomp(train_scaled)$sdev^2 / sum(prcomp(train_scaled)$sdev^2))
+k <- 15  
+
+# Extract the principal components of the training and test sets
+train_pca <- data.frame(pca$x[, 1:k])
+test_pca <- data.frame(test_scaled %*% pca$rotation[, 1:k])
+
+# Fitting logistic regression models to PCA-transformed data
+train_pca$depressed <- train_labels
+model_pca <- glm(depressed ~ ., data = train_pca, family = binomial)
+
+# prediction
+predictions_pca <- predict(model_pca, newdata = test_pca, type = "response")
+predicted_classes_pca <- ifelse(predictions_pca > 0.5, "1", "0")
+
+predicted_classes_pca <- as.factor(predicted_classes_pca)
+test_labels <- as.factor(test_labels)
+
+level_order <- sort(union(levels(predicted_classes_pca), levels(test_labels)))
+
+predicted_classes_pca <- factor(predicted_classes_pca, levels = level_order)
+test_labels <- factor(test_labels, levels = level_order)
+
+# evaluation
+confusionMatrix(predicted_classes_pca, test_labels)
+```
+
+### 4.3.2 PCA result analysis
+### 1. Explanatory power of PCA: From the result given by the principal component analysis, the proportion of cumulative variance explained by the first 15 principal components is about 97.36%. This means that most of the information is contained by these 15 components, which, theoretically, is a better data downscaling.
+
+### 2. model performance (using the properties of PCA):
+###  Confusion matrix: the results show that the model predicted almost all the test samples to be in the negative category (non-depressed) and only one sample was predicted to be in the positive category (depressed), but this prediction was wrong. In fact, there should be 38 positive samples.
+###  Accuracy and sensitivity: the overall accuracy of the model was 82.89%, but the specificity of the model was 0, indicating that it failed to correctly identify any truly depressed samples. This indicates a high rate of false positives.
+
+### 3. problem analysis:
+###  Data imbalance: the proportion of depressed and non-depressed samples in the dataset is severely imbalanced, and the model will be biased towards the majority class, resulting in high precision but low recall.
+###  Influence of data: although PCA can reduce the dimensionality of the data, the correlation between the original variables is not high enough for PCA to effectively capture information useful for prediction. In addition, the inclusion of a large number of zero values in many variables may affect the effectiveness of PCA because these zeros may represent different meanings (e.g., not recorded or actual value of zero), thus distorting the intrinsic distribution of the data.PCA tends to emphasize variables with large variance. There are some variables in this dataset that have very high variance (e.g., agricultural income) and others that have relatively low variance, then in PCA the There are some variables in this dataset that have very high variance (e.g., agricultural income) and others that have relatively low variance, then in PCA the variables with large variance will have a large impact on the calculation of the principal components, resulting in these principal components reflecting mainly information from the variables with large variance and ignoring other variables that may be just as important, but with low variance.
+
+### 4. Improve the methodology:
+
+###  Dealing with the imbanlanced data: As we can see, the visualizations show us the dataset is imbalanced. We are considering use SMOTE or sampling techniques to balance the categories in this dataset, especially our target variable: depression status is highly imbalanced in categories.
+
+###  Feature engineering: further analyze the variables, especially those containing a large number of 0 values, to understand the specific meaning of these 0 values and consider whether these variables need special treatment, such as variable transformation, filling in missing values, etc.
+
+
+
+
+
+## 5.Model applications and Model Comparison
+
+## 5.1 imbalanced dataset
+
+### 5.1.1 Logistic Model
+
+```{r}
+# Load necessary libraries
+library(readxl)
+library(caret)
+library(dplyr)
+
+# Read and prepare the dataset
+read_data <- function(file_path) {
+  data <- read_excel(file_path)
+  print(paste("Number of rows:", nrow(data)))
+  print(paste("Number of columns:", ncol(data)))
+  print(paste("Number of missing values:", sum(is.na(data))))
+  return(data)
+}
+
+# Remove outliers based on Z-score
+remove_outliers <- function(dataset) {
+  means <- apply(dataset, 2, mean, na.rm = TRUE)
+  sds <- apply(dataset, 2, sd, na.rm = TRUE)
+  z_scores <- abs(scale(dataset, center = means, scale = sds))
+  dataset[apply(z_scores, 1, max, na.rm = TRUE) < 3, ]
+}
+
+# Logistic regression analysis on cleaned dataset
+perform_logistic_regression <- function(cleaned_dataset) {
+  # Setting up data for training and testing
+  set.seed(123)
+  training_indices <- createDataPartition(cleaned_dataset$depressed, p = 0.7, list = FALSE)
+  train_data <- cleaned_dataset[training_indices, ]
+  test_data <- cleaned_dataset[-training_indices, ]
+  
+  # Training the logistic regression model
+  logistic_model <- glm(depressed ~ ., data = train_data, family = binomial())
+  summary(logistic_model)
+  
+  # Predicting on the test data
+  predictions <- predict(logistic_model, newdata = test_data, type = "response")
+  predicted_classes <- factor(ifelse(predictions > 0.5, 1, 0), levels = c(0, 1))
+  
+  # Evaluating the model
+  confusion_matrix <- confusionMatrix(predicted_classes, test_data$depressed)
+  print(confusion_matrix)
+}
+
+# Main execution block
+file_path <- "/Users/zijiehe/Desktop/STAT515FINAL/dep.xlsx"
+data <- read_data(file_path)
+data <- remove_outliers(data)
+data$depressed <- as.factor(data$depressed)
+perform_logistic_regression(data)
+```
+
+
+### 5.1.1 Summary of Logistic model on imbalanced dataset
+
+### This logistic regression model performs well, has a nice accuracy (around 84.36%), but performs poorly in terms of its ability to distinguish between two categories (specifically, the positive category, i.e., 1). The accuracy of the model is similar to the No Information Rate (NIR), which indicates that the model does not significantly outperform random guessing in terms of predictive power. In addition, the model's sensitivity in the positive category is extremely low and the specificity is very bad.
+
+### Accuracy: The accuracy is 84.36%, but this is because the imbalance in the data (most of the data belongs to category 0).
+
+### Positive Predictive Value and Negative Predictive Value: PPV is 85%, indicating that when the model predicts a positive category, the probability of being correct is 85%. BUT the NPV is very low which is 33.33%, which means the NP is very low. The model cannot distinguish the class '1'.
+
+### Sensitivity and Specificity: Sensitivity is as high as 99%, but Specificity is only 2.70%. This indicates that the model hardly recognizes the positive class correctly (CLass=1).
+
+### Kappa statistic: The Kappa value is only 0.0278 which indicates that the model has poor predictive power.
+
+### Mcnemar's Test P-value: 8.636e-08, indicating that the model has significant bias in predicting positive and negative classes.
+
+### Balanced Accuracy: 50.87%, which further emphasizes the inadequacy of the model in handling unbalanced datasets.
+
+
+### 5.1.2 Weighted Logistic model
+
+```{r }
+# Load necessary libraries
+library(caret)
+library(dplyr)
+
+# Function to read and prepare the dataset
+read_data <- function(file_path) {
+  data <- read_excel(file_path)
+  print(paste("Number of rows:", nrow(data)))
+  print(paste("Number of columns:", ncol(data)))
+  print(paste("Number of missing values:", sum(is.na(data))))
+  return(data)
+}
+
+# Function to remove outliers based on Z-score
+remove_outliers <- function(dataset) {
+  means <- apply(dataset, 2, mean, na.rm = TRUE)
+  sds <- apply(dataset, 2, sd, na.rm = TRUE)
+  z_scores <- abs(scale(dataset, center = means, scale = sds))
+  dataset[apply(z_scores, 1, max, na.rm = TRUE) < 3, ]
+}
+
+# Function for weighted logistic regression analysis
+perform_weighted_logistic_regression <- function(cleaned_dataset, weight) {
+  # Setting up data for training and testing
+  set.seed(123)
+  training_indices <- createDataPartition(cleaned_dataset$depressed, p = 0.8, list = FALSE)
+  train_data <- cleaned_dataset[training_indices, ]
+  test_data <- cleaned_dataset[-training_indices, ]
+
+  # Defining weights for the logistic regression model
+  weights <- ifelse(train_data$depressed == 0, 1, weight)
+
+  # Training the weighted logistic regression model
+  weighted_model <- glm(depressed ~ ., data = train_data, family = binomial(), weights = weights)
+  summary(weighted_model)
+  
+  # Predicting on the test data
+  predictions <- predict(weighted_model, newdata = test_data, type = "response")
+  predicted_classes <- factor(ifelse(predictions > 0.5, 1, 0), levels = c(0, 1))
+  
+  # Evaluating the model
+  confusion_matrix <- confusionMatrix(predicted_classes, test_data$depressed)
+  print(confusion_matrix)
+  
+  # Additional model evaluation
+  aic <- AIC(weighted_model)
+  print(paste("AIC:", aic))
+}
+
+# Main execution block
+file_path <- "/Users/zijiehe/Desktop/STAT515FINAL/dep.xlsx"
+data <- read_data(file_path)
+data <- remove_outliers(data)
+data$depressed <- as.factor(data$depressed)
+perform_weighted_logistic_regression(data, weight = 4)
+```
+
+
+### 5.1.2 Summary of Weighted Logistic model on imbalanced dataset
+
+### Accuracy: 74.69%, which is less than last one.
+
+### Predictive Ability: The model has a high prediction accuracy for the positive category (90%) but performs poorly for the negative category (NPV is only 30.95%), indicating that the model is less reliable in predicting the negative category. So this result is the similar to last one because of the imbalanced data.
+
+### Balanced Accuracy: 0.6542, indicating that the model is not very well when it encounters imbalanced dataset. Especially encoutner the negative class (class=1).
+
+### Mcnemar's Test P-Value: 0.01246, indicating that the model has high bias when it deal with different classes.
+
+### Kappa: 0.2413, indicating that this model is much better than last one. Because this one get the weight into class '1'.
+
+
+### 5.1.3 Decision Tree model
+
+```{r echo=TRUE}
+# Load necessary libraries
+library(readxl)
+library(caret)
+library(dplyr)
+library(rpart)
+library(rattle)
+
+# Function to read and prepare the dataset
+read_data <- function(file_path) {
+  data <- read_excel(file_path)
+  print(paste("Number of rows:", nrow(data)))
+  print(paste("Number of columns:", ncol(data)))
+  print(paste("Number of missing values:", sum(is.na(data))))
+  return(data)
+}
+
+# Function to remove outliers based on Z-score
+remove_outliers <- function(dataset) {
+  means <- apply(dataset, 2, mean, na.rm = TRUE)
+  sds <- apply(dataset, 2, sd, na.rm = TRUE)
+  z_scores <- abs(scale(dataset, center = means, scale = sds))
+  dataset[apply(z_scores, 1, max, na.rm = TRUE) < 3, ]
+}
+
+# Function for decision tree analysis on imbalanced data
+perform_decision_tree <- function(cleaned_dataset) {
+  # Setting up data for training and testing
+  set.seed(123)
+  training_indices <- createDataPartition(cleaned_dataset$depressed, p = 0.7, list = FALSE)
+  train_data <- cleaned_dataset[training_indices, ]
+  test_data <- cleaned_dataset[-training_indices, ]
+
+  # Training the decision tree model
+  tree_model <- rpart(depressed ~ ., data = train_data, method = "class")
+
+  # Plotting the decision tree
+  fancyRpartPlot(tree_model, main="Decision Tree", sub = NULL)
+
+  # Printing the summary of the trained decision tree
+  print(summary(tree_model))
+
+  # Predicting on the test set
+  predicted_values <- predict(tree_model, newdata = test_data, type = "class")
+  predicted_classes <- factor(predicted_values, levels = c(0, 1))
+  actual_values <- factor(test_data$depressed, levels = c(0, 1))
+  
+  # Evaluating the model
+  confusion_matrix <- confusionMatrix(predicted_classes, actual_values)
+  print(confusion_matrix)
+  
+  return(list(model = tree_model, confusion_matrix = confusion_matrix))
+}
+
+# Main execution block
+file_path <- "/Users/zijiehe/Desktop/STAT515FINAL/dep.xlsx"
+data <- read_data(file_path)
+data <- remove_outliers(data)
+data$depressed <- as.factor(data$depressed)
+perform_decision_tree(data)
+```
+
+
+### 5.1.3 Summary of Decision Tree model on imbalanced dataset
+
+### Based on the decision tree model and confusion matrix data, the model mainly predicted category 0 (non-depressed), but performed poorly for category 1 (depressed).(the similar result as above some models).
+
+### Accuracy: 82.3%, the model is highly accurate
+
+### Kappa statistic: Kappa is negative, indicating that the model has poor predictive power.
+
+### Sensitivity and specificity: the sensitivity was high (96.6%), indicating that the model was able to identify individuals with non-depressive symptoms well; however, the specificity was extremely low (2.7%), indicating that it was almost impossible to correctly identify individuals with true depressive symptoms.
+
+### Positive and negative predictive values: the positive predictive value is 84.68%, but the negative predictive value is 12.5%, indicating the model's poor ability to predict class '1'.
+
+
+
+## 5.2 Balanced dataset
+
+### 5.2.1 Logistic model on balanced dataset (Upsampling)
+
+```{r echo=TRUE}
+# Load necessary libraries
+library(readxl)
+library(caret)
+library(dplyr)
+
+# Function to read and prepare the dataset
+read_data <- function(file_path) {
+  data <- read_excel(file_path)
+  print(paste("Number of rows:", nrow(data)))
+  print(paste("Number of columns:", ncol(data)))
+  print(paste("Number of missing values:", sum(is.na(data))))
+  return(data)
+}
+
+# Function to remove outliers based on Z-score
+remove_outliers <- function(dataset) {
+  means <- apply(dataset, 2, mean, na.rm = TRUE)
+  sds <- apply(dataset, 2, sd, na.rm = TRUE)
+  z_scores <- abs(scale(dataset, center = means, scale = sds))
+  dataset[apply(z_scores, 1, max, na.rm = TRUE) < 3, ]
+}
+
+# Function for upsampling imbalanced data
+upSampling <- function(dataset) {
+  set.seed(111)
+  upsampled_data <- upSample(x = dataset[, -ncol(dataset)], y = dataset$depressed)
+  names(upsampled_data)[names(upsampled_data) == "Class"] <- "depressed"
+  return(upsampled_data)
+}
+
+# Function for logistic regression analysis on balanced dataset
+perform_logistic_regression <- function(balanced_dataset) {
+  # Setting up data for training and testing
+  set.seed(123)
+  training_indices <- createDataPartition(balanced_dataset$depressed, p = 0.7, list = FALSE)
+  train_data <- balanced_dataset[training_indices, ]
+  test_data <- balanced_dataset[-training_indices, ]
+
+  # Training the logistic regression model
+  logistic_model <- glm(depressed ~ ., data = train_data, family = binomial())
+  summary(logistic_model)
+  
+  # Predicting on the test data
+  predictions <- predict(logistic_model, newdata = test_data, type = "response")
+  predicted_classes <- factor(ifelse(predictions > 0.5, 1, 0), levels = c(0, 1))
+  
+  # Evaluating the model
+  confusion_matrix <- confusionMatrix(predicted_classes, test_data$depressed)
+  print(confusion_matrix)
+}
+
+# Main execution block
+file_path <- "/Users/zijiehe/Desktop/STAT515FINAL/dep.xlsx"
+data <- read_data(file_path)
+data <- remove_outliers(data)
+data$depressed <- as.factor(data$depressed)
+balanced_data <- upSampling(data)
+perform_logistic_regression(balanced_data)
+```
+
+
+### 5.2.1 Summary of Logistic model on balanced dataset
+
+### Summarizing the model performance: The overall performance of the model was good with an accuracy of 63.59% . But the predictive ability is relatively relatively good in unbalanced data. But the sensitivity and specificity performance is not good.
+
+### No Information Rate (NIR): 0.5, indicating balanced data categories.
+
+### P-Value [Acc > NIR]: 1.884e-08. This very small p-value indicates that the model is significantly more accurate than the prediction rate without any information.
+
+### Kappa: 0.2718, indicating that the model has some predictive power.
+
+### Mcnemar's Test P-Value: 0.08641. This value is greater than 0.05, indicating that there is no significant bias between predicting positive and negative categories.
+
+### Sensitivity: 68.93%. This means that the model correctly identifies 68.93% of the actual positive classes, indicating that the model performs well in identifying actual positive classes.
+
+### Specificity: 58.25%. This means that the model correctly identifies 58.25% of the actual negative classes, indicating that the model has improved its performance relative to the previous model.
+
+### Pos Pred Value, PPV: 62.28%. This is the percentage of predicted positive categories that are actually positive, indicating that when the model predicts a sample to be positive, there is a 62.28% probability that it will be correct.
+
+### Neg Pred Value, NPV: 65.22%. This is the percentage of predicted negative categories that are actually negative, indicating that when the model predicts a sample to be negative, there is a 65.22% probability of being correct.
+
+### Balanced Accuracy: 63.59%. This is the average of the sensitivity and specificity. It indicates that the model is equally capable of predicting both categories.
+
+
+
+### 5.2.2 Decision Tree model on balanced dataset (Upsampling)
+
+```{r echo=TRUE}
+# Load necessary libraries
+library(readxl)
+library(caret)
+library(dplyr)
+library(rpart)
+library(rattle)
+
+# Function to read and prepare the dataset
+read_data <- function(file_path) {
+  data <- read_excel(file_path)
+  print(paste("Number of rows:", nrow(data)))
+  print(paste("Number of columns:", ncol(data)))
+  print(paste("Number of missing values:", sum(is.na(data))))
+  return(data)
+}
+
+# Function to remove outliers based on Z-score
+remove_outliers <- function(dataset) {
+  means <- apply(dataset, 2, mean, na.rm = TRUE)
+  sds <- apply(dataset, 2, sd, na.rm = TRUE)
+  z_scores <- abs(scale(dataset, center = means, scale = sds))
+  dataset[apply(z_scores, 1, max, na.rm = TRUE) < 3, ]
+}
+
+# Function for upsampling imbalanced data
+upSampling <- function(dataset) {
+  set.seed(111)
+  upsampled_data <- upSample(x = dataset[, -ncol(dataset)], y = dataset$depressed)
+  names(upsampled_data)[names(upsampled_data) == "Class"] <- "depressed"
+  return(upsampled_data)
+}
+
+# Function for decision tree analysis on balanced dataset
+perform_decision_tree <- function(balanced_dataset) {
+  # Setting up data for training and testing
+  set.seed(123)
+  training_indices <- createDataPartition(balanced_dataset$depressed, p = 0.7, list = FALSE)
+  train_data <- balanced_dataset[training_indices, ]
+  test_data <- balanced_dataset[-training_indices, ]
+
+  # Training the decision tree model
+  tree_model <- rpart(depressed ~ ., data = train_data, method = "class")
+
+  # Plotting the decision tree
+  fancyRpartPlot(tree_model, main="Balanced Decision Tree", sub = NULL)
+
+  # Printing the summary of the trained decision tree
+  print(summary(tree_model))
+
+  # Predicting on the test set
+  predicted_values <- predict(tree_model, newdata = test_data, type = "class")
+  predicted_classes <- factor(predicted_values, levels = c(0, 1))
+  actual_values <- factor(test_data$depressed, levels = c(0, 1))
+  
+  # Evaluating the model
+  confusion_matrix <- confusionMatrix(predicted_classes, actual_values)
+  print(confusion_matrix)
+  
+  return(list(model = tree_model, confusion_matrix = confusion_matrix))
+}
+
+# Main execution block
+file_path <- "/Users/zijiehe/Desktop/STAT515FINAL/dep.xlsx"
+data <- read_data(file_path)
+data <- remove_outliers(data)
+data$depressed <- as.factor(data$depressed)
+balanced_data <- upSampling(data)
+perform_decision_tree(balanced_data)
+```
+
+
+### 5.2.2 Summary of Decision Tree model on balanced dataset (Upsampling)
+
+### Summarize the model performance: The results show an accuracy of 70.87%, which indicates that the model performs well in distinguishing between the two categories (depressed and non-depressed).The Kappa statistic is 0.4175, which indicates that the model's predictive power is relatively good. The model showed some validity when dealing with a balanced dataset.
+
+### kappa: 0.4175. kappa values between 0.4 and 0.6 indicate that the model has moderate predictive consistency.
+
+### Mcnemar's Test P-Value: 0.1709, which is higher than 0.05, indicating that the difference between the predictions of the positive and negative categories is not statistically significant, and the model is more balanced in predicting the two categories.
+
+### Sensitivity: 66.99%. Indicates that the model correctly identifies approximately 67% of non-depressed instances.
+
+### Specificity: 74.76%. Indicates that the model correctly identifies approximately 75% of the instances of depression.
+
+### Balanced Accuracy: 70.87%. Indicates that the model has excellent performance in handling both categories.
+
+### Variable Importance and Split of the Model
+
+### Variable significance: consumption-related characteristics such as "cons_social", "cons_nondurable", and "cons_other" had a significant effect on modeled decisions that suggesting a strong association between economic activity and depressive state.
+### Main splits of the decision tree: The model is first split based on "fs_adwholed_often" (Frequency of purchasing full-price food items on a regular basis), which suggests that household food status is an important factor influencing depressive status. Next, health and social factors such as "cons_social" and "med_sickdays_have" are also used as decision nodes.
+
+
+
+### 5.3.1 Logistic model on balanced dataset (down sampling)
+
+```{r echo=TRUE}
+# Load necessary libraries
+library(readxl)
+library(caret)
+library(dplyr)
+
+# Function to read and prepare the dataset
+read_data <- function(file_path) {
+  data <- read_excel(file_path)
+  print(paste("Number of rows:", nrow(data)))
+  print(paste("Number of columns:", ncol(data)))
+  print(paste("Number of missing values:", sum(is.na(data))))
+  return(data)
+}
+
+# Function to remove outliers based on Z-score
+remove_outliers <- function(dataset) {
+  means <- apply(dataset, 2, mean, na.rm = TRUE)
+  sds <- apply(dataset, 2, sd, na.rm = TRUE)
+  z_scores <- abs(scale(dataset, center = means, scale = sds))
+  dataset[apply(z_scores, 1, max, na.rm = TRUE) < 3, ]
+}
+
+# Function for downsampling imbalanced data
+downSampling <- function(dataset) {
+  set.seed(111)
+  downsampled_data <- downSample(x = dataset[, -ncol(dataset)], y = dataset$depressed)
+  names(downsampled_data)[names(downsampled_data) == "Class"] <- "depressed"
+  return(downsampled_data)
+}
+
+# Function for logistic regression analysis on balanced dataset
+perform_logistic_regression <- function(balanced_dataset) {
+  # Setting up data for training and testing
+  set.seed(123)
+  training_indices <- createDataPartition(balanced_dataset$depressed, p = 0.7, list = FALSE)
+  train_data <- balanced_dataset[training_indices, ]
+  test_data <- balanced_dataset[-training_indices, ]
+
+  # Training the logistic regression model
+  logistic_model <- glm(depressed ~ ., data = train_data, family = binomial())
+  summary(logistic_model)
+  
+  # Predicting on the test data
+  predictions <- predict(logistic_model, newdata = test_data, type = "response")
+  predicted_classes <- factor(ifelse(predictions > 0.5, 1, 0), levels = c(0, 1))
+  
+  # Evaluating the model
+  confusion_matrix <- confusionMatrix(predicted_classes, test_data$depressed)
+  print(confusion_matrix)
+}
+
+# Main execution block
+file_path <- "/Users/zijiehe/Desktop/STAT515FINAL/dep.xlsx"
+data <- read_data(file_path)
+data <- remove_outliers(data)
+data$depressed <- as.factor(data$depressed)
+balanced_data <- downSampling(data)
+perform_logistic_regression(balanced_data)
+```
+
+
+### 5.3.1 Summary of Logistic model on balanced dataset (down sampling)
+
+### Summarizing the model performance
+### This logistic regression model performed mediocrely when dealing with a balanced dataset with an accuracy of 56.76%. This indicates that the model is not very effective in distinguishing between depressed and non-depressed states.The Kappa statistic of 0.1351 indicates that the model has average predictive power.
+
+### Accuracy: 56.76%. The overall accuracy of the model is low, indicating its limited discriminatory power.
+
+### 95% CI (Confidence Interval): (44.72%, 68.23%). Confidence intervals are wide, indicating that estimates of model accuracy are not stable enough.
+
+### No Information Rate (NIR): 50%. Indicates that if the model does not have any valid information, the prediction accuracy is 50%.
+
+### Kappa: 0.1351. This value indicates that the predictive power of the model is not good.
+
+### Mcnemar's Test P-Value: 0.8597, which indicates that the bias between positive and negative predictions is not significant, i.e., the model's imbalance between the predictions of the two categories is not significant.
+
+### Sensitivity and Specificity:54.05% and 59.46%. These two indicators show that the model is weak in recognizing both positive and negative categories.
+
+### Positive Predictive Value, PPV and Negative Predictive Value, NPV: PPV is 57.14% and NPV is 56.41%, which indicates that the model is average in predicting correctness.
+
+### Balanced Accuracy: 56.76%, which indicates that the model is average in positive and negative class prediction.
+
+
+### 5.3.2 Decision Tree model on balanced dataset (down sampling)
+
+```{r echo=TRUE}
+# Load necessary libraries
+library(readxl)
+library(caret)
+library(dplyr)
+library(rpart)
+library(rattle)  # For fancyRpartPlot
+
+# Read and prepare the dataset
+read_data <- function(file_path) {
+  data <- read_excel(file_path)
+  print(paste("Number of rows:", nrow(data)))
+  print(paste("Number of columns:", ncol(data)))
+  print(paste("Number of missing values:", sum(is.na(data))))
+  return(data)
+}
+
+# Remove outliers based on Z-score
+remove_outliers <- function(dataset) {
+  means <- apply(dataset, 2, mean, na.rm = TRUE)
+  sds <- apply(dataset, 2, sd, na.rm = TRUE)
+  z_scores <- abs(scale(dataset, center = means, scale = sds))
+  return(dataset[apply(z_scores, 1, max, na.rm = TRUE) < 3, ])
+}
+
+# Downsample imbalanced data
+downSampling <- function(dataset) {
+  set.seed(111)
+  downsampled_data <- downSample(x = dataset[, -ncol(dataset)], y = dataset$depressed)
+  names(downsampled_data)[names(downsampled_data) == "Class"] <- "depressed"
+  return(downsampled_data)
+}
+
+# Decision tree analysis on balanced dataset
+perform_decision_tree <- function(balanced_dataset) {
+  set.seed(123)
+  training_indices <- createDataPartition(balanced_dataset$depressed, p = 0.7, list = FALSE)
+  train_data <- balanced_dataset[training_indices, ]
+  test_data <- balanced_dataset[-training_indices, ]
+
+  tree_model <- rpart(depressed ~ ., data = train_data, method = "class")
+  fancyRpartPlot(tree_model, main="Balanced Decision Tree")
+  print(summary(tree_model))
+
+  predicted_values <- predict(tree_model, newdata = test_data, type = "class")
+  predicted_classes <- factor(predicted_values, levels = c(0, 1))
+  actual_values <- factor(test_data$depressed, levels = c(0, 1))
+  confusion_matrix <- confusionMatrix(predicted_classes, actual_values)
+  print(confusion_matrix)
+}
+
+# Main execution block
+file_path <- "/Users/zijiehe/Desktop/STAT515FINAL/dep.xlsx"
+data <- read_data(file_path)
+data <- remove_outliers(data)
+data$depressed <- as.factor(data$depressed)
+balanced_data <- downSampling(data)
+perform_decision_tree(balanced_data)
+```
+
+
+### 5.3.2 Summary of Decision Tree model on balanced dataset (down sampling)
+
+### Accuracy: 55.41%
+
+### Kappa: 0.1081, the model's ability to predict is not good.
+
+### Node: Split based on years_of_edu, which suggests that this variable is an important factor in distinguishing between the two categories (depressed or not).
+
+### FIRST LEVEL SEGMENTATION: Further segmentation is done based on med_sickdays_have which shows that health status is also an important factor that affects depression status.
+
+### Deeper nodes: Various variables such as ed_expenses, cons_social etc. are used in deeper nodes which shows that the model tries to categorize through several different features to increase the accuracy of decision making.
+
+
+## 6.Conclusions
+
+```{r}
+results <- data.frame(
+  Condition = c("Imbalanced", "Imbalanced", "Imbalanced", 
+                "Balanced - Upsampling", "Balanced - Upsampling", 
+                "Balanced - Downsampling", "Balanced - Downsampling"),
+  Model = c("Logistic Regression", "Weighted Logistic Regression", "Decision Tree",
+            "Logistic Regression", "Decision Tree", 
+            "Logistic Regression", "Decision Tree"),
+  Accuracy = c(0.8436, 0.7469, 0.823, 0.6359, 0.7087, 0.5676, 0.5541),
+  Kappa = c(0.0278, 0.2413, -0.0102, 0.2718, 0.4175, 0.1351, 0.1081),
+  Sensitivity = c(0.99029, 0.7883, 0.96602, 0.6893, 0.6699, 0.5405, 0.5135),
+  Specificity = c(0.02703, 0.52, 0.02703, 0.5825, 0.7476, 0.5946, 0.5946)
+)
+
+kable(results, caption = "Performance Metrics for Various Models",
+      col.names = c("Condition", "Model", "Accuracy", "Kappa", "Sensitivity", "Specificity"),
+      format = "html", align = c('l', 'l', 'c', 'c', 'c', 'c')) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE, position = "left") %>%
+  row_spec(5, background = "#90EE90")  # Highlight the fifth row with a yellow background
+```
+
+```{r}
+
+data <- read.csv(textConnection("
+Condition,Model,Accuracy,Kappa,Sensitivity,Specificity
+Imbalanced,Logistic Regression,0.8436,0.0278,0.99029,0.02703
+Imbalanced,Weighted Logistic Regression,0.7469,0.2413,0.78830,0.52000
+Imbalanced,Decision Tree,0.8230,-0.0102,0.96602,0.02703
+Balanced - Upsampling,Logistic Regression,0.6359,0.2718,0.68930,0.58250
+Balanced - Upsampling,Decision Tree,0.7087,0.4175,0.66990,0.74760
+Balanced - Downsampling,Logistic Regression,0.5676,0.1351,0.54050,0.59460
+Balanced - Downsampling,Decision Tree,0.5541,0.1081,0.51350,0.59460
+"))
+
+data_long <- data %>%
+  pivot_longer(cols = c("Accuracy", "Kappa", "Sensitivity", "Specificity"),
+               names_to = "Metric", values_to = "Value")
+
+p <- ggplot(data_long, aes(x = Condition, y = Value, color = Model, group = Model)) +
+  geom_line() +
+  geom_point() +
+  facet_wrap(~ Metric, scales = "free_y") +
+  labs(title = "Model Performance Comparison",
+       x = "Condition",
+       y = "Value") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5),
+        plot.margin = margin(t = 10, r = 10, b = 20, l = 10, unit = "pt"))
+
+# plotly
+gg_plotly <- ggplotly(p)
+gg_plotly
+
+```
+
+
+### Using a variety of modeling scenarios, we observed significant differences in performance between models trained on imbalanced datasets and those adjusted for balance through upsampling or downsampling techniques. Within the imbalanced data category, Logistic Regression offers high accuracy and sensitivity, but at the expense of exceptionally low specificity, indicating a likely overfitting to the majority class. According to this skew, the model is able to predict the majority class well, but it does not adequately recognize instances of the minority class. However, Weighted Logistic Regression, which adjusts the model's focus to better account for minority classes, improves specificity significantly. As a result, this adjustment reduces overall accuracy and sensitivity, demonstrating the trade-offs associated with addressing class imbalances.
+
+### The Decision Tree model stands out among the Balanced - Upsampling models, especially due to its superior Kappa score of 0.4175, which suggests that the predictions of the model and the actual data are well aligned, beyond what would be expected by chance. Furthermore, this model achieves the highest specificity among all models at 0.7476, demonstrating its efficiency in identifying true negatives, which is crucial when analyzing a balanced dataset with no dominant class. Based on the performance of the Decision Tree in this scenario, it is apparent that it is capable of tackling the complexity of a balanced dataset, leveraging its ability to manage non-linear relationships and intricate features interactions.
+
+### Conversely, we note a degradation in performance for both models tested in the Balanced - Downsampling scenario. In this case, the downsampling likely contributed to the reduction in data variability and richness, which is crucial to training, thus underscoring the downsides of downsampling as a balancing method.
+
+### Based on these insights, the Decision Tree model trained on the upsampled balanced dataset is particularly recommended. The recommendation is based on the model's robust Kappa score, which indicates not just random chance agreement but a substantive alignment with the balanced nature of the dataset. An advantage of upsampling is that it preserves the entirety of the dataset, thereby enhancing the ability of the model to learn from all available nuances, unlike downsampling, which might omit crucial information. Inherently, decision trees have the ability to select significant features and optimize the split of data, so they are ideally suited for situations where class representation requires careful consideration.
